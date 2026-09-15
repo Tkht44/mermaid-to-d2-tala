@@ -1,0 +1,11 @@
+---
+config:
+  layout: elk
+---
+flowchart LR
+  user([User]) -->|Request| gateway{Authorized?}
+  gateway -->|Yes| api[API]
+  gateway -.->|No| denied[Denied]
+  subgraph backend[Backend]
+    api --> db[(Database)]
+  end

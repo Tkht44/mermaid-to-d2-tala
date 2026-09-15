@@ -1,0 +1,9 @@
+{
+  "name": "mermaid-to-d2-tala",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "mmd2d2": "./src/cli.js" },
+  "scripts": { "test": "node --test", "start": "node src/cli.js" },
+  "engines": { "node": ">=20" }
+}
