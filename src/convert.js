@@ -110,7 +110,7 @@ function ref(node) {
 
 export function convertMermaidFlowchartToD2(source, options = {}) {
   const statements = splitStatements(stripFrontmatter(source));
-  const warnings = [], nodes = new Map(), edges = [], containers = [];
+  const warnings = [], nodes = new Map(), edges = [], containers = [], classAssignments = [];
   const stack = [];
 
   const header = statements.shift();
@@ -156,7 +156,13 @@ export function convertMermaidFlowchartToD2(source, options = {}) {
       else warnings.push({ line:item.line, message:'top-level direction statement omitted; header direction is used' });
       continue;
     }
-    if (/^(classDef|class|style|linkStyle|click)\b/i.test(s)) {
+    if ((m = s.match(/^class\s+([^\s]+)\s+([^\s;]+)\s*;?$/i))) {
+      const ids = m[1].split(',').map(id => id.trim()).filter(Boolean);
+      const className = m[2].trim();
+      for (const id of ids) classAssignments.push({ id, className, line: item.line });
+      continue;
+    }
+    if (/^(classDef|style|linkStyle|click)\b/i.test(s)) {
       warnings.push({ line:item.line, message:`styling or interaction omitted: ${s.split(/\s/)[0]}` });
       continue;
     }
@@ -199,6 +205,15 @@ export function convertMermaidFlowchartToD2(source, options = {}) {
     if (!node.containerPath.length) output.push(emitNode(node, ''));
   }
   for (const container of children([])) emitContainer(container, 0);
+
+  for (const assignment of classAssignments) {
+    const node = nodes.get(assignment.id);
+    if (!node) {
+      warnings.push({ line: assignment.line, message: `class target not found: ${assignment.id}` });
+      continue;
+    }
+    output.push(`${ref(node)}.class: ${safeId(assignment.className)}`);
+  }
   output.push('');
 
   for (const e of edges) {

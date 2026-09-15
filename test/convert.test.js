@@ -27,3 +27,43 @@ end`);
 test('strict mode rejects omitted syntax', () => {
   assert.throws(() => convertMermaidFlowchartToD2('flowchart TD\nclassDef hot fill:red', {strict:true}));
 });
+
+
+test('resolves node membership declared after an earlier edge reference', () => {
+  const input = `---
+config:
+  layout: elk
+---
+flowchart LR
+  user([User]) -->|Request| gateway{Authorized?}
+  gateway -->|Yes| api[API]
+  gateway -.->|No| denied[Denied]
+  subgraph backend[Backend]
+    api --> db[(Database)]
+  end`;
+  const { d2, warnings } = convertMermaidFlowchartToD2(input);
+  assert.equal(warnings.length, 0);
+  assert.doesNotMatch(d2, /^"api":/m);
+  assert.match(d2, /"backend": "Backend" \{[\s\S]*"api": \{ label: "API"; shape: rectangle \}/);
+  assert.match(d2, /"gateway" -> "backend"\."api": "Yes"/);
+  assert.match(d2, /"backend"\."api" -> "backend"\."db"/);
+  assert.match(d2, /"gateway" -> "denied": "No" \{ style\.stroke-dash: 4 \}/);
+});
+
+
+test('converts Mermaid class assignments including container-qualified nodes', () => {
+  const input = `flowchart LR
+FMS --> TCP
+subgraph backend[Backend]
+ECU --> DBCLoader
+end
+class FMS,ECU server;
+class TCP component;
+class DBCLoader database;`;
+  const { d2, warnings } = convertMermaidFlowchartToD2(input);
+  assert.equal(warnings.length, 0);
+  assert.match(d2, /"FMS"\.class: "server"/);
+  assert.match(d2, /"backend"\."ECU"\.class: "server"/);
+  assert.match(d2, /"TCP"\.class: "component"/);
+  assert.match(d2, /"backend"\."DBCLoader"\.class: "database"/);
+});
